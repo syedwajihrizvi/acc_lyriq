@@ -2,7 +2,7 @@ import numpy as np
 
 
 class Vehicle(object):
-    def __init__(self, mass, density_air, c_drag, frontal_area, delta_t=0.1):
+    def __init__(self, mass, density_air, c_drag, frontal_area, vel, acc, delta_t):
         self.mass = mass
         self.delta_t = delta_t
         self.density_air = 1.29
@@ -11,8 +11,8 @@ class Vehicle(object):
         self.gravity = 9.8
         self.aero_drag = 0
 
-        self.velocity = 0
-        self.acceleration = 0
+        self.velocity = vel
+        self.acceleration = acc
         self.position = 0
 
     def compute_step(self, force_at_wheel, road_load):

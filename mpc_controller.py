@@ -9,30 +9,32 @@ class mpc_controller:
 
     def predict_trajectory(rel_dist, v0, a0, v_lead, v_max, dt, N, opti):
         X = opti.variable(N+1, 4)
-        U = opti.variable(N, 1)
+        U = opti.variable(N, 2)
         J = opti.variable(N-1, 1)
         opti.subject_to(X[0, 0] == rel_dist)
         opti.subject_to(X[0, 1] == v0)
+        opti.subject_to(X[0, 2] == a0)
+        opti.subject_to(X[0, 3] == 0)
         
         for i in range(N):
-            opti.subject_to(U[i] >= -3)
-            opti.subject_to(U[i] <= 3)
+            opti.subject_to(U[i,0] >= 0)
+            opti.subject_to(U[i,0] <= 1)
+            opti.subject_to(U[i,1] <= 0)
+            opti.subject_to(U[i,1] >= -1)
+            
             opti.subject_to(X[i+1, 1] <= v_max)
             opti.subject_to(X[i+1, 1] >= 0)
             opti.subject_to(X[i+1, :] == X[i, :] + mpc_controller.f(X[i, 1], U[i], v_lead)*dt)
 
-            if i < N-1:
-                opti.subject_to(J[i] <= 4)
-                opti.subject_to(J[i] >= -4)
-                if i ==0:
-                    opti.subject_to(J[i] == (U[i] - a0)/dt)
-                else:
-                    opti.subject_to(J[i] == (U[i] - U[i-1])/dt)
+            if (i > 0):
+                opti.subject_to(J[i-1] <= 4)
+                opti.subject_to(J[i-1] >= -4)
+                opti.subject_to(J[i-1] == (X[i,2] - X[i-1,2])/dt)
         return X, U, J
 
 
 
-    def mpc(self,rel_dist,v0,a0,v_lead,v_max, safe_stop_dist,dt, N):
+    def mpc(self,rel_dist,v0,a0, v_lead,v_max, safe_stop_dist,dt, N):
 
         # Set up optimization problem
         opti = ca.Opti()

@@ -16,7 +16,7 @@ from front_wheels import FrontWheels
 from rear_wheels import RearWheels
 
 class simulator:
-    def simulator():
+    def simulator(u, vel, acc, delta_t):
         delta_t = 1
         vehicle_mass = 3000 * 0.453592  # in kg
 
@@ -34,8 +34,8 @@ class simulator:
 
         tire_radius = 0.465
 
-        driver = Driver(k_p, k_i, k_d, delta_t)
-        vehicle = Vehicle(vehicle_mass, c_drag, frontal_area, delta_t)
+        # driver = Driver(k_p, k_i, k_d, delta_t)
+        vehicle = Vehicle(vehicle_mass, c_drag, frontal_area, vel, acc, delta_t)
         battery = Battery(0.6, 3, 120, delta_t)
         em = ElectricMotor()
         em_gearbox = Gearbox(em_efficiency, em_gearbox_ratio)
@@ -63,113 +63,115 @@ class simulator:
         rear_brake_torque_out = []
         alpha = []
         beta = []
-        v_p = []
-        v_i = []
+        # v_p = []
+        # v_i = []
 
-        for v in v_cyc:
-            driver_out = driver.compute_step(v, vehicle.velocity)
+        # driver_out = driver.compute_step(v, vehicle.velocity)
+        # u[0] = alpha, u[1] = beta
 
-            # compute necessary battery power
-            power_req = driver.alpha * battery.compute_max_power()
-            power_req_out.append(power_req)
+        # compute necessary battery power
+        power_req = u[0] * battery.compute_max_power()
+        power_req_out.append(power_req)
 
-            b_out = battery.compute_step(power_req)
-            battery_power_out.append(b_out['pack_power'])
+        b_out = battery.compute_step(power_req)
+        battery_power_out.append(b_out['pack_power'])
 
-            em.compute_step(battery.p_pack, em_gearbox.em_force_w)
-            em_torque_out.append(em.em_torque)
+        em.compute_step(battery.p_pack, em_gearbox.em_force_w)
+        em_torque_out.append(em.em_torque)
 
-            rear_brakes.compute_step(rear_wheels.wheel_torque, driver.beta)
-            front_brakes.compute_step(front_wheels.wheel_torque, driver.beta)
+        rear_brakes.compute_step(rear_wheels.wheel_torque, u[1])
+        front_brakes.compute_step(front_wheels.wheel_torque, u[1])
 
-            em_gearbox.compute_step(em.em_torque, front_brakes.front_brake_w)
+        em_gearbox.compute_step(em.em_torque, front_brakes.front_brake_w)
 
-            front_wheels.compute_step(
-                em_gearbox.torque_out / 2, front_brakes.brake_torque, vehicle.velocity)
+        front_wheels.compute_step(
+            em_gearbox.torque_out / 2, front_brakes.brake_torque, vehicle.velocity)
 
-            rear_wheels.compute_step(
-                em_gearbox.torque_out / 2, rear_brakes.brake_torque, vehicle.velocity)
+        rear_wheels.compute_step(
+            em_gearbox.torque_out / 2, rear_brakes.brake_torque, vehicle.velocity)
 
-            vehicle_data = vehicle.compute_step(front_wheels.force_at_wheel +
-                                                rear_wheels.force_at_wheel, 0)
+        vehicle_data = vehicle.compute_step(front_wheels.force_at_wheel +
+                                            rear_wheels.force_at_wheel, 0)
 
-            # print(v, vehicle_data['velocity'])
-            front_wheel_torque_out.append(front_wheels.wheel_torque)
-            rear_wheel_torque_out.append(rear_wheels.wheel_torque)
-            force_at_wheel_out.append(front_wheels.force_at_wheel +
-                                    rear_wheels.force_at_wheel)
-            front_brake_torque_out.append(front_brakes.brake_torque)
-            rear_brake_torque_out.append(rear_brakes.brake_torque)
-            alpha.append(driver.alpha)
-            beta.append(driver.beta)
-            v_p.append(driver_out['v_p'])
-            v_i.append(driver_out['v_i'])
-            v_out.append(vehicle_data['velocity'])
+        # print(v, vehicle_data['velocity'])
+        front_wheel_torque_out.append(front_wheels.wheel_torque)
+        rear_wheel_torque_out.append(rear_wheels.wheel_torque)
+        force_at_wheel_out.append(front_wheels.force_at_wheel +
+                                rear_wheels.force_at_wheel)
+        front_brake_torque_out.append(front_brakes.brake_torque)
+        rear_brake_torque_out.append(rear_brakes.brake_torque)
 
-
-        fig2 = plt.figure()
-        plt.title('battery power request')
-        plt.plot(t_cyc, battery_power_out, 'b')
-        plt.plot(t_cyc, power_req_out, 'r--')
-        # plt.legend('battery', 'power')
+        return [vehicle_data['position'], vehicle_data['velocity'], vehicle_data['acceleration'], battery_power_out]
+        # alpha.append(driver.alpha)
+        # beta.append(driver.beta)
+        # v_p.append(driver_out['v_p'])
+        # v_i.append(driver_out['v_i'])
+        # v_out.append(vehicle_data['velocity'])
 
 
-        fig3 = plt.figure()
-        plt.plot(t_cyc, em_torque_out, 'b')
+        # fig2 = plt.figure()
+        # plt.title('battery power request')
+        # plt.plot(t_cyc, battery_power_out, 'b')
+        # plt.plot(t_cyc, power_req_out, 'r--')
+        # # plt.legend('battery', 'power')
 
 
-        fig4 = plt.figure()
-        plt.title('wheel torque')
-        plt.plot(t_cyc, rear_wheel_torque_out, 'b')
-        plt.plot(t_cyc, front_wheel_torque_out, 'r--')
+        # fig3 = plt.figure()
+        # plt.plot(t_cyc, em_torque_out, 'b')
 
 
-        fig5 = plt.figure()
-        plt.title('wheel force')
-        plt.plot(t_cyc, force_at_wheel_out, 'b')
+        # fig4 = plt.figure()
+        # plt.title('wheel torque')
+        # plt.plot(t_cyc, rear_wheel_torque_out, 'b')
+        # plt.plot(t_cyc, front_wheel_torque_out, 'r--')
 
 
-        fig6 = plt.figure()
-        plt.title('brake torque')
-        plt.plot(t_cyc, front_brake_torque_out, 'b')
-        plt.plot(t_cyc, rear_brake_torque_out, 'r--')
-
-        fig6 = plt.figure()
-        plt.title('throttle/brake command')
-        plt.plot(t_cyc, alpha, 'b')
-        plt.plot(t_cyc, beta, 'r--')
+        # fig5 = plt.figure()
+        # plt.title('wheel force')
+        # plt.plot(t_cyc, force_at_wheel_out, 'b')
 
 
-        fig1 = plt.figure()
-        plt.plot(t_cyc, v_cyc, 'b')
-        plt.plot(t_cyc, v_out, 'r--')
+        # fig6 = plt.figure()
+        # plt.title('brake torque')
+        # plt.plot(t_cyc, front_brake_torque_out, 'b')
+        # plt.plot(t_cyc, rear_brake_torque_out, 'r--')
 
-        fig7 = plt.figure(figsize=(8, 9))
-
-        veh_speed = plt.subplot(511)
-        veh_speed.set_title('Vehicle speed')
-        veh_speed.plot(t_cyc, v_cyc, 'b')
-        veh_speed.plot(t_cyc, v_out, 'r--')
-        veh_speed.plot(t_cyc, v_cyc - v_out, 'g')
-
-        acc_brake_cmd = plt.subplot(512, sharex=veh_speed)
-        acc_brake_cmd.set_title('Throttle / Brake command')
-        acc_brake_cmd.plot(t_cyc, alpha, 'b')
-        acc_brake_cmd.plot(t_cyc, beta, 'r--')
-
-        power_req = plt.subplot(513, sharex=veh_speed)
-        power_req.set_title('Battery power out')
-        power_req.plot(t_cyc, em_torque_out)
+        # fig6 = plt.figure()
+        # plt.title('throttle/brake command')
+        # plt.plot(t_cyc, alpha, 'b')
+        # plt.plot(t_cyc, beta, 'r--')
 
 
-        wheel_torque = plt.subplot(514, sharex=veh_speed)
-        wheel_torque.set_title('Wheel Torque')
-        wheel_torque.plot(t_cyc, front_wheel_torque_out, 'b')
-        wheel_torque.plot(t_cyc, rear_wheel_torque_out, 'r--')
+        # fig1 = plt.figure()
+        # plt.plot(t_cyc, v_cyc, 'b')
+        # plt.plot(t_cyc, v_out, 'r--')
 
-        driver_pi = plt.subplot(515, sharex=veh_speed)
-        driver_pi.set_title('Driver PI')
-        driver_pi.plot(t_cyc, v_p, 'b')
-        driver_pi.plot(t_cyc, v_i, 'r')
+        # fig7 = plt.figure(figsize=(8, 9))
 
-        plt.show()
+        # veh_speed = plt.subplot(511)
+        # veh_speed.set_title('Vehicle speed')
+        # veh_speed.plot(t_cyc, v_cyc, 'b')
+        # veh_speed.plot(t_cyc, v_out, 'r--')
+        # veh_speed.plot(t_cyc, v_cyc - v_out, 'g')
+
+        # acc_brake_cmd = plt.subplot(512, sharex=veh_speed)
+        # acc_brake_cmd.set_title('Throttle / Brake command')
+        # acc_brake_cmd.plot(t_cyc, alpha, 'b')
+        # acc_brake_cmd.plot(t_cyc, beta, 'r--')
+
+        # power_req = plt.subplot(513, sharex=veh_speed)
+        # power_req.set_title('Battery power out')
+        # power_req.plot(t_cyc, em_torque_out)
+
+
+        # wheel_torque = plt.subplot(514, sharex=veh_speed)
+        # wheel_torque.set_title('Wheel Torque')
+        # wheel_torque.plot(t_cyc, front_wheel_torque_out, 'b')
+        # wheel_torque.plot(t_cyc, rear_wheel_torque_out, 'r--')
+
+        # # driver_pi = plt.subplot(515, sharex=veh_speed)
+        # # driver_pi.set_title('Driver PI')
+        # # driver_pi.plot(t_cyc, v_p, 'b')
+        # # driver_pi.plot(t_cyc, v_i, 'r')
+
+        # plt.show()
